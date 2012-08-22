@@ -24,7 +24,7 @@
 #include "stc_log.h"
 
 #define RPC_TIMEOUT_US (1000 * 500)
-#define RPC_PAYLOAD_MAX 1024
+#define RPC_PAYLOAD_MAX (2048)
 
 typedef struct rpc_request_hdr_t {
 	unsigned code;
@@ -67,7 +67,7 @@ typedef struct rpc rpc_t;
 
 #define RPC_UNPACK_RAW(buffer, idx, pvalue, size) do {\
 	if (idx + size >= RPC_PAYLOAD_MAX) {\
-		RPC_ERROR("data too large");\
+		RPC_ERROR("data too large : %d bytes", idx + size);\
 		goto fail;\
 	}\
 	memcpy(pvalue, buffer + idx, size);\
