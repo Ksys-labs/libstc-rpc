@@ -1,3 +1,23 @@
+/**
+ * This file is part of stc-rpc.
+ *
+ * Copyright (C) 2012 Alexander Tarasikov <alexander.tarasikov@gmail.com>
+ *
+ * stc-rpc is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * stc-rpc is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with stc-rpc.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,7 +72,9 @@ static void rpc_cond_wait(struct rpc *rpc) {
 }
 
 static void rpc_cond_signal(struct rpc *rpc) {
+	pthread_mutex_lock(&rpc->cond_mtx);
 	pthread_cond_broadcast(&rpc->cond);
+	pthread_mutex_unlock(&rpc->cond_mtx);
 }
 
 static int select_write(int fd) {
@@ -103,23 +125,24 @@ static int rpc_send(struct rpc *rpc) {
 		goto fail;
 	}
 
-	RPC_DEBUG("%s: code %x", __func__, req.header.code);
+	RPC_DEBUG(">>> code %x", req.header.code);
 	
 	if (rpc_write(rpc->fd, &req.header, sizeof(rpc_request_hdr_t)) < 0) {
 		RPC_PERROR("rpc_write");
 		goto fail;
 	}
+	RPC_DEBUG(">>> sent header");
 
 	if (rpc_read(rpc->fd, &req.reply, sizeof(rpc_reply_t)) < 0) {
 		RPC_PERROR("rpc_read");
 		goto fail;
 	}
-	RPC_DEBUG("<<< reply code %x", req.reply.code);
+	RPC_DEBUG(">>> reply code %x", req.reply.code);
 
 	if (req.reply_marker) {
 		req.reply_marker[0] = 1;
-		rpc_cond_signal(rpc);
 	}
+	rpc_cond_signal(rpc);
 
 	LOG_EXIT;
 	return 0;
@@ -142,13 +165,14 @@ static int rpc_recv(struct rpc *rpc) {
 	RPC_DEBUG("<<< header code %x", hdr.code);
 	if (rpc->handler(&hdr, &reply)) {
 		RPC_ERROR("failed to handle message");
-		goto fail;
 	}
+	RPC_DEBUG("<<< handled message %x", hdr.code);
 
 	if (rpc_write(rpc->fd, &reply, sizeof(reply)) < 0) {
 		RPC_PERROR("rpc_write");
 		goto fail;
 	}
+	RPC_DEBUG("<<< done with message %x", hdr.code);
 
 	LOG_EXIT;
 	return 0;
