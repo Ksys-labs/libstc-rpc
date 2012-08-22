@@ -17,7 +17,9 @@ enum debug_level {
 	#define DEBUG_LEVEL LOG_DEBUG
 #endif
 
-#define LOG_TAG "[GPS-RPC] "
+#ifndef LOG_TAG
+	#define LOG_TAG "[GPS-RPC] "
+#endif
 
 #ifdef ANDROID
 	#include <utils/Log.h>
@@ -42,7 +44,7 @@ enum debug_level {
 			} while (0)
 	#else
 		#define RPC_ERROR(x, a...) do {\
-				RPC_PRINTF("Error at [%s:%d] " x, __func__, __LINE__, ##a); \
+				RPC_PRINTF("Error at [%s:%d] " x "\n", __func__, __LINE__, ##a); \
 			} while (0)
 	#endif
 #else
@@ -74,10 +76,10 @@ enum debug_level {
 #endif
 
 #define RPC_PERROR(f) \
-	RPC_ERROR("%s: error code %d message \'%s\'\n", \
+	RPC_ERROR("%s: error code %d message \'%s\'", \
 		f, errno, strerror(errno))
 
-#define LOG_ENTRY do { RPC_DEBUG("+%s\n", __func__); } while (0)
-#define LOG_EXIT do { RPC_DEBUG("-%s\n", __func__); } while (0)
+#define LOG_ENTRY do { RPC_DEBUG("+%s", __FUNCTION__); } while (0)
+#define LOG_EXIT do { RPC_DEBUG("-%s", __FUNCTION__); } while (0)
 
 #endif //__STC_LOG_H__

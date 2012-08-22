@@ -11,8 +11,9 @@ LOCAL_SRC_FILES:= \
 
 LOCAL_SHARED_LIBRARIES := \
 	liblog \
+	libutils \
 	libcutils
 
-LOCAL_CFLAGS :=
+LOCAL_CFLAGS += -fPIC -fno-short-enums
 
 include $(BUILD_STATIC_LIBRARY)
