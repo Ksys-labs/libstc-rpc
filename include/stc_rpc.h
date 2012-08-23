@@ -123,6 +123,15 @@ int rpc_init(int fd, rpc_handler_t handler, rpc_t *rpc);
 int rpc_call(rpc_t *rpc, rpc_request_t *req);
 
 /*
+ * @brief Performs the RPC call and returns immediately without waiting
+ * for the request to complete
+ *
+ * @return zero (0) in case of success
+ * @return negative error code in case of a failure
+ */
+int rpc_call_noreply(rpc_t *rpc, rpc_request_t *req);
+
+/*
  * @brief starts the RPC worker thread
  *
  * @param rpc the pointer to the rpc_init'ed RPC structure

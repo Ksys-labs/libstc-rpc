@@ -49,6 +49,8 @@ struct rpc {
 
 	pthread_mutex_t cond_mtx;
 	pthread_cond_t cond;
+
+	pthread_mutex_t pipe_mtx;
 };
 
 enum {
@@ -120,7 +122,12 @@ static int rpc_send(struct rpc *rpc) {
 	LOG_ENTRY;
 
 	struct rpc_request_t req;
-	if (read(rpc->pipefd[READ_END], &req, sizeof(req)) < 0) {
+
+	pthread_mutex_lock(&rpc->pipe_mtx);
+	int rc = read(rpc->pipefd[READ_END], &req, sizeof(req));
+	pthread_mutex_unlock(&rpc->pipe_mtx);
+
+	if (rc < 0) {
 		RPC_PERROR("read");
 		goto fail;
 	}
@@ -156,7 +163,6 @@ static int rpc_recv(struct rpc *rpc) {
 	LOG_ENTRY;
 		
 	memset(&reply, 0, sizeof(reply));
-
 	if (rpc_read(rpc->fd, &hdr, sizeof(hdr)) < 0) {
 		RPC_PERROR("rpc_read");
 		goto fail;
@@ -230,32 +236,54 @@ static void* do_rpc_thread(void *data) {
 	return NULL;
 }
 
-int rpc_call(struct rpc *rpc, struct rpc_request_t *req) {
+int __rpc_call(struct rpc *rpc, struct rpc_request_t *req, int wait) {
 	int ret = 0;
 	LOG_ENTRY;
 
 	int done = 0;
 	req->reply_marker = &done;
 
-	pthread_mutex_lock(&rpc->fd_mutex);
+	RPC_DEBUG("%s: writing to pipe", __func__);
+
+	pthread_mutex_lock(&rpc->pipe_mtx);
 	ret = write(rpc->pipefd[WRITE_END], req, sizeof(rpc_request_t));
-	pthread_mutex_unlock(&rpc->fd_mutex);
+	pthread_mutex_unlock(&rpc->pipe_mtx);
 
 	if (ret < 0) {
 		RPC_PERROR("write");
 		goto fail;
 	}
 
-	RPC_DEBUG("waiting for reply");
+	if (!wait) {
+		goto done;
+	}
+
 	while (!done) {
+		RPC_DEBUG("%s: waiting for reply", __func__);
 		rpc_cond_wait(rpc);
 	}
 	RPC_DEBUG("got reply");
+
+done:
 	ret = 0;
 
 fail:
 	LOG_EXIT;
 	return ret;
+}
+
+int rpc_call(struct rpc *rpc, struct rpc_request_t *req) {
+	LOG_ENTRY;
+	int rc = __rpc_call(rpc, req, 1);
+	LOG_EXIT;
+	return rc;
+}
+
+int rpc_call_noreply(struct rpc *rpc, struct rpc_request_t *req) {
+	LOG_ENTRY;
+	int rc = __rpc_call(rpc, req, 0);
+	LOG_EXIT;
+	return rc;
 }
 
 rpc_t *rpc_alloc(void) {
@@ -314,6 +342,11 @@ int rpc_init(int fd, rpc_handler_t handler, rpc_t *rpc) {
 		goto fail_cond;
 	}
 
+	if (pthread_mutex_init(&rpc->pipe_mtx, NULL)) {
+		RPC_ERROR("init pipe mutex");
+		goto fail_pipe_mutex;
+	}
+
 	if (pipe(rpc->pipefd) < 0) {
 		RPC_PERROR("pipe");
 		goto fail_pipe;
@@ -325,7 +358,10 @@ int rpc_init(int fd, rpc_handler_t handler, rpc_t *rpc) {
 	rpc->handler = handler;
 
 	return 0;
+
 fail_pipe:
+	pthread_mutex_destroy(&rpc->pipe_mtx);
+fail_pipe_mutex:
 	pthread_cond_destroy(&rpc->cond);
 fail_cond:
 	pthread_mutex_destroy(&rpc->cond_mtx);
