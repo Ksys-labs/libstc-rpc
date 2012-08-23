@@ -237,9 +237,12 @@ int rpc_call(struct rpc *rpc, struct rpc_request_t *req) {
 	int done = 0;
 	req->reply_marker = &done;
 
-	if (write(rpc->pipefd[WRITE_END], req, sizeof(rpc_request_t)) < 0) {
+	pthread_mutex_lock(&rpc->fd_mutex);
+	ret = write(rpc->pipefd[WRITE_END], req, sizeof(rpc_request_t));
+	pthread_mutex_unlock(&rpc->fd_mutex);
+
+	if (ret < 0) {
 		RPC_PERROR("write");
-		ret = -1;
 		goto fail;
 	}
 
@@ -248,6 +251,7 @@ int rpc_call(struct rpc *rpc, struct rpc_request_t *req) {
 		rpc_cond_wait(rpc);
 	}
 	RPC_DEBUG("got reply");
+	ret = 0;
 
 fail:
 	LOG_EXIT;
