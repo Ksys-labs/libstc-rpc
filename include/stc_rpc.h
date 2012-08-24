@@ -151,4 +151,14 @@ int rpc_start(rpc_t *rpc);
  */
 int rpc_join(rpc_t *rpc); 
 
+/*
+ * @brief forcibly SIGKILLs the rpc thread
+ *
+ * @param rpc the pointer to the rpc_init'ed RPC structure
+ *
+ * @return zero (0) in case of success
+ * @return negative error code in case of a failure
+ */
+int rpc_kill(rpc_t *rpc); 
+
 #endif //__STC_RPC_H__

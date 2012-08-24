@@ -171,6 +171,7 @@ static int rpc_recv(struct rpc *rpc) {
 	RPC_DEBUG("<<< header code %x", hdr.code);
 	if (rpc->handler(&hdr, &reply)) {
 		RPC_ERROR("failed to handle message");
+		goto fail;
 	}
 	RPC_DEBUG("<<< handled message %x", hdr.code);
 
@@ -398,5 +399,20 @@ fail:
 }
 
 int rpc_join(rpc_t *rpc) {
+	if (!rpc) {
+		return 0;
+	}
 	return pthread_join(rpc->rpc_thread, NULL);
+}
+
+int rpc_kill(rpc_t *rpc) {
+	if (!rpc) {
+		return 0;
+	}
+	rpc->active = 0;
+	
+	rpc_cond_signal(rpc);
+
+	int rc = pthread_kill(rpc->rpc_thread, SIGKILL);
+	return rc;
 }
