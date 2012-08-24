@@ -243,7 +243,7 @@ int __rpc_call(struct rpc *rpc, struct rpc_request_t *req, int wait) {
 	int done = 0;
 	req->reply_marker = &done;
 
-	RPC_DEBUG("%s: writing to pipe", __func__);
+	RPC_DEBUG("%s: writing to pipe code=%d", __func__, req->header.code);
 
 	pthread_mutex_lock(&rpc->pipe_mtx);
 	ret = write(rpc->pipefd[WRITE_END], req, sizeof(rpc_request_t));
