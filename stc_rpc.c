@@ -209,17 +209,14 @@ static void* do_rpc_thread(void *data) {
 		FD_SET(rpc->fd, &fds);
 		FD_SET(rpc->pipefd[READ_END], &fds);
 
-		struct timeval tv = {
-			.tv_usec = RPC_TIMEOUT_US,
-		};
-
-		select(max(rpc->fd, rpc->pipefd[READ_END]) + 1, &fds, NULL, NULL, &tv);
+		select(max(rpc->fd, rpc->pipefd[READ_END]) + 1, &fds, NULL, NULL, NULL);
 		pthread_mutex_lock(&rpc->fd_mutex);
 		if (FD_ISSET(rpc->fd, &fds)) {
 			RPC_DEBUG("receiving RPC message");
 			if (rpc_recv(rpc) < 0) {
 				RPC_ERROR("receive error");
 				rpc->active = 0;
+				goto handled;
 			}
 		}
 		if (FD_ISSET(rpc->pipefd[READ_END], &fds)) {
