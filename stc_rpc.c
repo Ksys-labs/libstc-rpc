@@ -357,6 +357,8 @@ int rpc_init(int fd, rpc_handler_t handler, rpc_t *rpc) {
 		RPC_PERROR("pipe");
 		goto fail_pipe;
 	}
+
+	set_nonblocking(rpc->pipefd[WRITE_END]);
 	set_nonblocking(rpc->pipefd[READ_END]);
 	set_nonblocking(fd);
 	
