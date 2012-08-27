@@ -227,11 +227,14 @@ static void* do_rpc_thread(void *data) {
 			if (rpc_send(rpc) < 0) {
 				RPC_ERROR("call error");
 				rpc->active = 0;
+				goto handled;
 			}
 		}
+handled:
 		pthread_mutex_unlock(&rpc->fd_mutex);
 		RPC_DEBUG("-loop");
 	}
+	rpc_cond_signal(rpc);
 
 	LOG_EXIT;
 	return NULL;
@@ -259,7 +262,7 @@ int __rpc_call(struct rpc *rpc, struct rpc_request_t *req, int wait) {
 		goto done;
 	}
 
-	while (!done) {
+	while (!done && rpc->active) {
 		RPC_DEBUG("%s: waiting for reply", __func__);
 		rpc_cond_wait(rpc);
 	}
@@ -267,6 +270,11 @@ int __rpc_call(struct rpc *rpc, struct rpc_request_t *req, int wait) {
 
 done:
 	ret = 0;
+
+	if (!done || !rpc->active) {
+		RPC_DEBUG("error");
+		ret = -1;
+	}
 
 fail:
 	LOG_EXIT;
